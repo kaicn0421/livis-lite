@@ -9,6 +9,8 @@ import { spawn, execFile } from "node:child_process";
 const PORT = Number(process.env.LIVIS_LITE_PORT || 8799);
 const TUI_BIN = process.env.DEEPSEEK_TUI_BIN || "deepseek-tui";
 const EXEC_MODE = (process.env.LIVIS_EXEC_MODE || "auto").toLowerCase();
+// 补全 PATH：即使从 PATH 不全的环境（双击 / GUI 启动）跑起来，也能找到 deepseek-tui
+const RICH_ENV = { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.HOME || ""}/.npm-global/bin:${process.env.PATH || ""}` };
 const MAX_CTX_TURNS = 6;
 const J = { "content-type": "application/json; charset=utf-8" };
 const history = []; // {role:"user"|"ai", text}
@@ -77,7 +79,7 @@ const server = http.createServer(async (req, res) => {
     const body = await readBody(req);
     const k = String(body.key || "").trim();
     if (!k) { res.writeHead(400, J); res.end(JSON.stringify({ ok: false, error: "空 key" })); return; }
-    execFile(TUI_BIN, ["login", "--api-key", k], { env: process.env }, (err, stdout, stderr) => {
+    execFile(TUI_BIN, ["login", "--api-key", k], { env: RICH_ENV }, (err, stdout, stderr) => {
       if (res.headersSent) return;
       res.writeHead(200, J);
       res.end(JSON.stringify(err ? { ok: false, error: String(stderr || err.message).slice(0, 300) } : { ok: true }));
@@ -91,7 +93,7 @@ const server = http.createServer(async (req, res) => {
     const args = ["exec", "--json"];
     if (EXEC_MODE === "auto") args.push("--auto");
     args.push(buildPrompt(text));
-    const child = spawn(TUI_BIN, args, { env: process.env });
+    const child = spawn(TUI_BIN, args, { env: RICH_ENV });
     let out = "", err = "";
     child.stdout.on("data", (d) => { out += d; });
     child.stderr.on("data", (d) => { err += d; });
