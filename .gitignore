@@ -1,0 +1,5 @@
+*
+!.gitignore
+!README.md
+!livis-lite.mjs
+!start.command
